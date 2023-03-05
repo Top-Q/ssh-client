@@ -1,6 +1,7 @@
 import com.SshCommand;
 import com.SshTerminal;
 import lombok.SneakyThrows;
+import lombok.val;
 import lombok.var;
 import org.testng.annotations.Test;
 
@@ -10,7 +11,7 @@ public class TestSshConnection extends AbstractTestCase{
     @Test
     @SneakyThrows
     public void testSshTerminalWithPrompts() {
-        try (SshTerminal terminal = new SshTerminal(cfg.host(), cfg.username(), cfg.password())) {
+        try (SshTerminal terminal = SshTerminal.newTerminalUsingCreds(cfg.host(), cfg.username(), cfg.password())) {
             var response = terminal.runCommand(new SshCommand("rm delme.txt"));
             System.out.println(response);
             response = terminal.runCommand(new SshCommand("touch delme.txt"));
@@ -27,7 +28,7 @@ public class TestSshConnection extends AbstractTestCase{
     @Test
     @SneakyThrows
     public void testSshTerminalSimpleCommands() {
-        try (SshTerminal terminal = new SshTerminal(cfg.host(), cfg.username(), cfg.password())) {
+        try (SshTerminal terminal = SshTerminal.newTerminalUsingCreds(cfg.host(), cfg.username(), cfg.password())) {
             var response = terminal.runCommand(new SshCommand("pwd"));
             System.out.println(response);
             response = terminal.runCommand("cd Downloads");
@@ -36,6 +37,16 @@ public class TestSshConnection extends AbstractTestCase{
             System.out.println(response);
             response = terminal.runCommand("ls -la");
             System.out.println(response);
+        }
+    }
+
+    @Test(expectedExceptions = {java.lang.RuntimeException.class})
+    @SneakyThrows
+    public void testCommandWithoutPrompt() {
+        try (SshTerminal terminal = SshTerminal.newTerminalUsingCreds(cfg.host(), cfg.username(), cfg.password())) {
+            val response = terminal.runCommand(new SshCommand("vim",10 ));
+            System.out.println(response.getStdout());
+            System.out.println("Not suppose to get to here");
         }
     }
 

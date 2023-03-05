@@ -16,17 +16,11 @@ public class SshTerminal implements Closeable {
 
     private static final String DEFAULT_PROMPT = "$";
 
-    private static final int DEFAULT_RETRY_IN_SECONDS = 30;
+    private static final int DEFAULT_RETRY_IN_SECONDS = 10;
 
     private static final int DEFAULT_SFTP_CONNECT_TIMEOUT = 5000;
 
-    private final String host;
-
-    private final String username;
-
-    private final String password;
-
-    private final int port;
+    private static final int DEFAULT_SSH_PORT = 22;
 
     private final Session session;
 
@@ -40,23 +34,38 @@ public class SshTerminal implements Closeable {
     @Getter
     private int retryForPromptInSeconds = DEFAULT_RETRY_IN_SECONDS;
 
-    public SshTerminal(String host, String username, String password) {
-        this(host, username, password, 22);
+    public static SshTerminal newTerminalUsingCreds(String host, String username, String password) {
+        return new SshTerminal(host, null, username, password, DEFAULT_SSH_PORT);
     }
 
+    public static SshTerminal newTerminalUsingCreds(String host, String username, String password, int port) {
+        return new SshTerminal(host, null, username, password, port);
+    }
+
+
+    public static SshTerminal newTerminalUsingPem(String host, String username, String privateKey) {
+        return new SshTerminal(host, privateKey, username, null, DEFAULT_SSH_PORT);
+    }
+
+    public static SshTerminal newTerminalUsingPem(String host, String username, String privateKey, int port) {
+        return new SshTerminal(host, privateKey, username, null, port);
+    }
+
+
     @SneakyThrows
-    public SshTerminal(String host, String username, String password, int port) {
-        this.host = host;
-        this.username = username;
-        this.password = password;
-        this.port = port;
+    private SshTerminal(String host, String privateKey, String username, String password, int port) {
         java.util.Properties config = new java.util.Properties();
         config.put("StrictHostKeyChecking", "no");
 
         JSch jsch = new JSch();
+        if (privateKey != null && !privateKey.isEmpty()) {
+            jsch.addIdentity(privateKey);
+        }
         session = jsch.getSession(username, host, port);
         session.setConfig(config);
-        session.setPassword(password);
+        if (password != null && !password.isEmpty()) {
+            session.setPassword(password);
+        }
         session.connect();
         outputStream = new ByteArrayOutputStream();
 
@@ -64,6 +73,9 @@ public class SshTerminal implements Closeable {
         channel.setOutputStream(outputStream);
         stream = new PrintStream(channel.getOutputStream());
         channel.connect();
+        // Let's wait a bit and then clean the welcome text
+        TimeUnit.SECONDS.sleep(1);
+        outputStream.reset();
     }
 
     /**
@@ -74,8 +86,6 @@ public class SshTerminal implements Closeable {
      */
     @SneakyThrows
     public SshResponse runCommand(String commandStr) {
-        stream.println(commandStr);
-        stream.flush();
         return runCommand(new SshCommand(commandStr));
     }
 
@@ -84,9 +94,12 @@ public class SshTerminal implements Closeable {
         if (null == command.getPrompt()) {
             command.setPrompt(DEFAULT_PROMPT);
         }
+        outputStream.reset();
         stream.println(command.getCommandStr());
         stream.flush();
-        for (int x = 1; x < retryForPromptInSeconds; x++) {
+        outputStream.reset();
+        int timeout = command.getTimeoutInSeconds() > 0 ? command.getTimeoutInSeconds() : retryForPromptInSeconds;
+        for (int x = 1; x < timeout; x++) {
             TimeUnit.SECONDS.sleep(1);
             if (outputStream.toString().indexOf(command.getPrompt()) > 0) {
                 String responseString = outputStream.toString();

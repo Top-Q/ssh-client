@@ -9,4 +9,6 @@ public interface TestConfig extends Config {
 
     String password();
 
+    String privateKeyFile();
+
 }

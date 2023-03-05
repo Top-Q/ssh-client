@@ -13,7 +13,7 @@ public class TestScp extends AbstractTestCase{
     @Test
     @SneakyThrows
     public void testGetFile() {
-        try (SshTerminal terminal = new SshTerminal(cfg.host(), cfg.username(), cfg.password())) {
+        try (SshTerminal terminal = SshTerminal.newTerminalUsingCreds(cfg.host(), cfg.username(), cfg.password())) {
             terminal.runCommand("echo 'Great Success' > myfile.txt");
             terminal.scpGetFile("myfile.txt","myfile.txt");
             terminal.runCommand("rm myfile.txt");
@@ -29,7 +29,7 @@ public class TestScp extends AbstractTestCase{
         final Path path = Paths.get("myfile.txt");
         Files.createFile(path);
         SshResponse response;
-        try (SshTerminal terminal = new SshTerminal(cfg.host(), cfg.username(), cfg.password())) {
+        try (SshTerminal terminal = SshTerminal.newTerminalUsingCreds(cfg.host(), cfg.username(), cfg.password())) {
             terminal.runCommand("rm myfile.txt");
             terminal.scpPutFile("myfile.txt","myfile.txt");
             response = terminal.runCommand("ls -la | grep myfile.txt");

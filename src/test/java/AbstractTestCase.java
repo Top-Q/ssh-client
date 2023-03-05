@@ -2,6 +2,6 @@ import org.aeonbits.owner.ConfigFactory;
 
 public abstract class AbstractTestCase {
 
-    TestConfig cfg = ConfigFactory.create(TestConfig.class);
+    protected TestConfig cfg = ConfigFactory.create(TestConfig.class);
 
 }
